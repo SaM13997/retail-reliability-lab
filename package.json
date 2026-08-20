@@ -7,10 +7,23 @@
   },
   "packageManager": "npm@10",
   "workspaces": [
+    "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "typecheck": "npm run typecheck --workspace=@retail-reliability/domain",
-    "test": "npm run test --workspace=@retail-reliability/domain"
+    "postinstall": "npm run build --workspace=@retail-reliability/domain",
+    "dev:console": "npm run dev --workspace=@retail-reliability/operator-console",
+    "dev:pos": "npm run web --workspace=@retail-reliability/store-pos",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "biome check apps packages",
+    "format": "biome check --write apps packages",
+    "test": "npm run test --workspaces --if-present",
+    "build:console": "npm run build --workspace=@retail-reliability/operator-console",
+    "build:pos": "npm run export:web --workspace=@retail-reliability/store-pos",
+    "e2e": "npm run cypress:run --workspace=@retail-reliability/operator-console",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build:console && npm run build:pos"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.14"
   }
 }

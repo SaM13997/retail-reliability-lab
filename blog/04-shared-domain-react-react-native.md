@@ -24,7 +24,7 @@ state transitions ---------->    desktop announcements                 native ac
 fixtures/tests   ----------->    browser component/E2E tests           native component/unit tests
 ```
 
-The source package is **expected from a parallel lane:** [`packages/domain/src/`](../packages/domain/src/). The two consumers are **expected from parallel lanes:** [`apps/operator-console/src/`](../apps/operator-console/src/) and [`apps/store-pos/src/`](../apps/store-pos/src/). Those paths are intentionally flagged because only `blog/` is present in this writing checkout.
+The source package lives in [`packages/domain/src/`](../packages/domain/src/). Its two consumers are the [`Operator Console`](../apps/operator-console/src/) and the [`Store POS`](../apps/store-pos/src/); each keeps rendering and platform APIs inside its own app boundary.
 
 A simple rule prevents architecture drift:
 
@@ -138,14 +138,14 @@ export function transitionPayment(state: PaymentState, event: PaymentEvent): Pay
 
 The UI should not silently convert `approved` into `synced`. Approval means payment succeeded; syncing means a completed-sale record reached the service. Separating them lets the POS truthfully show an offline queue and retry recovery, while preventing duplicate completion by using a durable sale ID/idempotency key at the API boundary.
 
-The intended domain file is **expected from a parallel lane:** [`packages/domain/src/events.ts`](../packages/domain/src/events.ts). A payment-specific module would be a reasonable addition only if its names and tests remain focused; do not create a generic `utils.ts` dumping ground.
+The payment event contract currently lives in [`packages/domain/src/index.ts`](../packages/domain/src/index.ts). Splitting it into a payment-specific module would be reasonable as the package grows; do not create a generic `utils.ts` dumping ground.
 
 ## Keep effects in adapters, not rules
 
 A portable domain function should not know whether data came from TanStack Query, `fetch`, Expo SecureStore, AsyncStorage, a barcode scanner, or a mock service worker. Build adapters in each app:
 
 ```ts
-// apps/store-pos/src/features/checkout/submitSale.ts (expected from a parallel lane)
+// apps/store-pos/src/domain.ts — platform adapter around shared rules
 export async function submitSale(input: CheckoutInput): Promise<PaymentState> {
   const guard = evaluateCheckout(input);
   if (!guard.allowed) throw new CheckoutBlockedError(guard.reason);
@@ -187,7 +187,7 @@ it("blocks checkout for unsafe stores", () => {
 });
 ```
 
-The intended home and test path are **expected from a parallel lane:** [`packages/domain/src/fixtures.ts`](../packages/domain/src/fixtures.ts) and [`packages/domain/src/checkout.test.ts`](../packages/domain/src/checkout.test.ts). Fixtures should name the business condition they represent (`timedOutPayment`, `lowStockStore`), not the UI screen that happened to first use them.
+The fixture generator and checkout rules live in [`packages/domain/src/index.ts`](../packages/domain/src/index.ts), with edge cases in [`packages/domain/test/domain.test.ts`](../packages/domain/test/domain.test.ts). Fixtures should name the business condition they represent (`timedOutPayment`, `lowStockStore`), not the UI screen that happened to first use them.
 
 Do not share component snapshots across platforms as a proxy for behavioral testing. Test pure domain transitions in the package; test web keyboard/error semantics in the Operator Console; test POS tap targets, labels, and recovery copy in Expo/React Native. The overlap is intentional, but the tools and assertions differ.
 

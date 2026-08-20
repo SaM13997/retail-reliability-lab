@@ -1,21 +1,28 @@
-import {
-  canCheckout,
-  cartTotalCents,
-  nextPaymentState,
-  queueSaleIfOffline,
-} from '../src/domain';
+import { canCheckout, cartTotalCents, nextPaymentState, queueSaleIfOffline } from '../src/domain';
 
-describe('temporary POS domain rules', () => {
+describe('POS adapter over shared domain rules', () => {
   const safeHealth = { storeOnline: true, deviceOnline: true, paymentsAvailable: true };
 
   it('blocks checkout when a health prerequisite is unsafe', () => {
-    expect(canCheckout([], safeHealth)).toEqual({ allowed: false, reason: 'Add an item before checking out.' });
-    expect(canCheckout([{ sku: 'coffee', quantity: 1, priceCents: 325 }], { ...safeHealth, paymentsAvailable: false }))
-      .toEqual({ allowed: false, reason: 'Payments terminal is unavailable.' });
+    expect(canCheckout([], safeHealth)).toEqual({
+      allowed: false,
+      reason: 'Add an item before checking out.',
+    });
+    expect(
+      canCheckout([{ sku: 'coffee', quantity: 1, priceCents: 325 }], {
+        ...safeHealth,
+        paymentsAvailable: false,
+      }),
+    ).toEqual({ allowed: false, reason: 'Payments terminal is unavailable.' });
   });
 
   it('calculates cart totals from quantity and unit price', () => {
-    expect(cartTotalCents([{ sku: 'coffee', quantity: 2, priceCents: 325 }, { sku: 'water', quantity: 1, priceCents: 175 }])).toBe(825);
+    expect(
+      cartTotalCents([
+        { sku: 'coffee', quantity: 2, priceCents: 325 },
+        { sku: 'water', quantity: 1, priceCents: 175 },
+      ]),
+    ).toBe(825);
   });
 
   it('makes payment retryable after timeout or decline', () => {

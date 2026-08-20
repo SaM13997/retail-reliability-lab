@@ -22,9 +22,10 @@ npm run web
 
 ## Architecture
 
-- `src/domain.ts` is the deliberately temporary, app-local pure domain boundary. It exposes checkout guards, cart money rules, payment transitions, and offline queue eligibility. Replace this import boundary with `@portfolio/domain` when that independently-owned package is available.
+- `packages/domain` owns runtime-validated cart, health, payment-state, and offline-sale rules shared by both demos.
+- `src/domain.ts` is a React Native adapter that maps screen-friendly types and copy to those shared rules.
 - `src/catalog.ts` provides deterministic generated fixtures and a query-shaped async fetch.
-- `App.tsx` owns screen-local interaction state and uses TanStack Query for catalog server-state loading.
+- `App.tsx` owns screen interaction state, persists the offline queue with AsyncStorage, and uses TanStack Query for catalog server-state loading.
 
 ## Demo controls
 

@@ -5,7 +5,11 @@ import App from './App';
 
 function renderApp() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={client}>
+      <App />
+    </QueryClientProvider>,
+  );
 }
 
 describe('Operator Console', () => {

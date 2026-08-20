@@ -29,7 +29,7 @@ Query function ---------> Query cache <--------- setQueryData / invalidate
 - An **event** identifies an entity change, possibly carries a safe partial patch, and needs dedupe/reconnect handling.
 - A **mutation response** is the strongest immediate evidence for a user-initiated change, but still must agree with later server snapshots.
 
-The intended hook boundary is **expected from a parallel lane:** [`apps/operator-console/src/features/stores/queries.ts`](../apps/operator-console/src/features/stores/queries.ts). The exact file is not yet present in this writing checkout; the link records the intended repository path rather than claiming a completed implementation.
+The demo’s compact query boundary is visible in [`apps/operator-console/src/App.tsx`](../apps/operator-console/src/App.tsx), backed by the typed simulator in [`apps/operator-console/src/api.ts`](../apps/operator-console/src/api.ts). A larger product should extract resource-specific query modules before adding more event types.
 
 ## Give cache keys a vocabulary
 
@@ -122,7 +122,7 @@ function RealtimeBridge({ children }: React.PropsWithChildren) {
 }
 ```
 
-The expected implementation anchor is **expected from a parallel lane:** [`apps/operator-console/src/app/RealtimeBridge.tsx`](../apps/operator-console/src/app/RealtimeBridge.tsx). It should own subscription lifetime, while feature modules own their query key and event-reconciliation policies.
+The current demo uses a timer-scoped live simulator in [`apps/operator-console/src/App.tsx`](../apps/operator-console/src/App.tsx). A production bridge should own subscription lifetime, while feature modules own their query key and event-reconciliation policies.
 
 Be careful with development Strict Mode: effects may mount, clean up, and mount again to surface unsafe side effects. A bridge must close its first connection correctly, and a server must tolerate reconnects. Hiding Strict Mode merely hides lifecycle defects.
 
@@ -193,7 +193,7 @@ If the backend cannot provide a cursor, full invalidation after reconnect is saf
 5. **Unauthorized cached data:** scope query keys and clear/reset the cache when the access context changes.
 6. **Offline optimistic edits:** do not imply completion. Persist a queue only with explicit conflict and retry semantics; otherwise keep the action pending in the session and explain its state.
 
-The event contract itself belongs in the shared domain package: **expected from a parallel lane:** [`packages/domain/src/events.ts`](../packages/domain/src/events.ts). Fixtures should exercise duplicates, gaps, and reorderings, not just the happy path: **expected from a parallel lane:** [`packages/domain/src/fixtures.ts`](../packages/domain/src/fixtures.ts).
+The shared package already owns payment event contracts and deterministic fixtures in [`packages/domain/src/index.ts`](../packages/domain/src/index.ts). A production stream should extend that boundary with sequence-aware operational events and exercise duplicates, gaps, and reorderings—not just the happy path.
 
 ## Practical checklist
 

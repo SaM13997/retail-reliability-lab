@@ -27,7 +27,7 @@ Observed: [record from a reproducible run]
 Data shape: deterministic fixture set; browser/device/build recorded
 ```
 
-Use deterministic demo fixtures when comparing runs. A live simulation toggle is valuable for product review, but its timing makes a poor baseline. The intended fixture source is **expected from a parallel lane:** [`packages/domain/src/fixtures.ts`](../packages/domain/src/fixtures.ts).
+Use deterministic demo fixtures when comparing runs. A live simulation toggle is valuable for product review, but its timing makes a poor baseline. The seeded fixture source lives in [`packages/domain/src/index.ts`](../packages/domain/src/index.ts).
 
 Then classify the candidate work:
 
@@ -98,7 +98,7 @@ const visibleItems = useMemo(
 
 Do not put `Date.now()` or mutation in `applyInventoryFilters`; that makes memoization hide changing semantics. Consider server-side filtering/pagination when the full collection is not necessary for the current decision.
 
-The intended inventory surface is **expected from a parallel lane:** [`apps/operator-console/src/features/inventory/InventoryTable.tsx`](../apps/operator-console/src/features/inventory/InventoryTable.tsx). It should pair list scale decisions with keyboard and focus tests rather than treating virtualization as a drop-in performance checkbox.
+The inventory surface currently lives in [`apps/operator-console/src/App.tsx`](../apps/operator-console/src/App.tsx). It pairs sorting and filtering with native table semantics; virtualization should be introduced only after measurement and paired with keyboard and focus tests.
 
 ## Virtualization changes interaction requirements
 
@@ -186,7 +186,7 @@ it("closes the stream when the store view unmounts", () => {
 });
 ```
 
-The intended test location is **expected from a parallel lane:** [`apps/operator-console/src/features/transactions/TransactionFeed.test.tsx`](../apps/operator-console/src/features/transactions/TransactionFeed.test.tsx). Include keyboard navigation and live-region assertions where a rendering “fix” changes user feedback.
+The current behavior tests live in [`apps/operator-console/src/App.test.tsx`](../apps/operator-console/src/App.test.tsx). Add keyboard navigation and live-region assertions whenever a rendering “fix” changes user feedback.
 
 ## Practical checklist
 

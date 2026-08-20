@@ -1,4 +1,14 @@
-// Temporary app-local boundary. Replace this module's exports with @portfolio/domain when shared ownership lands.
+import {
+  calculateCartTotals,
+  enqueueOfflineSale,
+  canCheckout as evaluateCheckout,
+  type PaymentEvent as SharedPaymentEvent,
+  type PaymentState as SharedPaymentState,
+  type StoreHealthSummary,
+  nextPaymentState as transitionPayment,
+} from '@retail-reliability/domain';
+
+/** React Native adapter types. Shared business rules remain in packages/domain. */
 export type CartLine = { sku: string; quantity: number; priceCents: number };
 export type Health = { storeOnline: boolean; deviceOnline: boolean; paymentsAvailable: boolean };
 export type PaymentState = 'idle' | 'processing' | 'approved' | 'declined' | 'timeout';
@@ -8,25 +18,91 @@ export type CompletedSale = { id: string; status: 'approved' | 'declined' };
 export const formatMoney = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 export const cartTotalCents = (lines: CartLine[]) =>
-  lines.reduce((total, line) => total + line.quantity * line.priceCents, 0);
+  calculateCartTotals({
+    currency: 'USD',
+    taxBasisPoints: 0,
+    lines: lines.map((line) => ({
+      productId: line.sku,
+      quantity: line.quantity,
+      unitPrice: { currency: 'USD', minor: line.priceCents },
+      discountMinor: 0,
+    })),
+  }).total.minor;
+
+const toStoreHealth = (health: Health): StoreHealthSummary => {
+  const offlineRequiredDeviceIds = [
+    ...(!health.deviceOnline ? ['scanner'] : []),
+    ...(!health.paymentsAvailable ? ['payment-reader'] : []),
+  ];
+  return {
+    status: offlineRequiredDeviceIds.length ? 'unsafe' : health.storeOnline ? 'healthy' : 'stale',
+    stale: !health.storeOnline,
+    offlineRequiredDeviceIds,
+    degradedDeviceIds: [],
+  };
+};
 
 export const canCheckout = (lines: CartLine[], health: Health) => {
-  if (!lines.length) return { allowed: false, reason: 'Add an item before checking out.' } as const;
-  if (!health.storeOnline) return { allowed: false, reason: 'Store connection is offline.' } as const;
-  if (!health.deviceOnline) return { allowed: false, reason: 'Scanner device needs attention.' } as const;
-  if (!health.paymentsAvailable) return { allowed: false, reason: 'Payments terminal is unavailable.' } as const;
-  return { allowed: true, reason: '' } as const;
+  const result = evaluateCheckout({ store: toStoreHealth(health), cartLines: lines.length });
+  if (result.allowed) return { allowed: true, reason: '' } as const;
+
+  const messages = {
+    'cart-empty': 'Add an item before checking out.',
+    'store-data-stale': 'Store connection is offline.',
+    'required-device-offline': !health.deviceOnline
+      ? 'Scanner device needs attention.'
+      : 'Payments terminal is unavailable.',
+  } as const;
+  return { allowed: false, reason: messages[result.reason] } as const;
+};
+
+const stateToShared: Record<PaymentState, SharedPaymentState> = {
+  idle: 'idle',
+  processing: 'processing',
+  approved: 'approved',
+  declined: 'declined',
+  timeout: 'timed-out',
+};
+const stateFromShared: Record<SharedPaymentState, PaymentState> = {
+  idle: 'idle',
+  processing: 'processing',
+  approved: 'approved',
+  declined: 'declined',
+  'timed-out': 'timeout',
+};
+
+const toSharedEvent = (event: PaymentEvent): SharedPaymentEvent => {
+  switch (event) {
+    case 'start':
+      return { type: 'started' };
+    case 'approve':
+      return { type: 'approved' };
+    case 'decline':
+      return { type: 'declined', reason: 'Deterministic demo decline' };
+    case 'timeout':
+      return { type: 'timed-out' };
+    case 'retry':
+      return { type: 'retry' };
+    case 'reset':
+      return { type: 'reset' };
+  }
 };
 
 export const nextPaymentState = (state: PaymentState, event: PaymentEvent): PaymentState => {
-  if (event === 'reset') return 'idle';
-  if (event === 'start' && state === 'idle') return 'processing';
-  if (event === 'approve' && state === 'processing') return 'approved';
-  if (event === 'decline' && state === 'processing') return 'declined';
-  if (event === 'timeout' && state === 'processing') return 'timeout';
-  if (event === 'retry' && (state === 'declined' || state === 'timeout')) return 'processing';
-  return state;
+  try {
+    return stateFromShared[transitionPayment(stateToShared[state], toSharedEvent(event))];
+  } catch {
+    return state;
+  }
 };
 
-export const queueSaleIfOffline = (sale: CompletedSale, online: boolean) =>
-  !online && sale.status === 'approved' ? [sale] : [];
+export const queueSaleIfOffline = (sale: CompletedSale, online: boolean) => {
+  if (online || sale.status !== 'approved') return [];
+  const queue = enqueueOfflineSale([], {
+    id: sale.id,
+    completedAt: '2026-01-01T12:00:00.000Z',
+    total: { currency: 'USD', minor: 0 },
+    paymentState: 'approved',
+  });
+  return queue.map(({ id, paymentState: status }) => ({ id, status }));
+};

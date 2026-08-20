@@ -1,18 +1,26 @@
 import { z } from 'zod';
 
 /** ISO 4217 currency represented as upper-case three-letter code. */
-export const currencySchema = z.string().regex(/^[A-Z]{3}$/, 'currency must be a three-letter upper-case ISO code');
-export const moneySchema = z.object({
-  currency: currencySchema,
-  minor: z.number().int().safe(),
-}).strict();
+export const currencySchema = z
+  .string()
+  .regex(/^[A-Z]{3}$/, 'currency must be a three-letter upper-case ISO code');
+export const moneySchema = z
+  .object({
+    currency: currencySchema,
+    minor: z.number().int().safe(),
+  })
+  .strict();
 export type Money = z.infer<typeof moneySchema>;
 
 export const parseMoney = (value: unknown): Money => moneySchema.parse(value);
-export const zeroMoney = (currency: string): Money => ({ currency: currencySchema.parse(currency), minor: 0 });
+export const zeroMoney = (currency: string): Money => ({
+  currency: currencySchema.parse(currency),
+  minor: 0,
+});
 
 const ensureSameCurrency = (left: Money, right: Money): void => {
-  if (left.currency !== right.currency) throw new Error(`currency mismatch: ${left.currency} and ${right.currency}`);
+  if (left.currency !== right.currency)
+    throw new Error(`currency mismatch: ${left.currency} and ${right.currency}`);
 };
 
 export const addMoney = (left: Money, right: Money): Money => {
@@ -21,25 +29,31 @@ export const addMoney = (left: Money, right: Money): Money => {
 };
 
 export const multiplyMoney = (amount: Money, quantity: number): Money => {
-  if (!Number.isSafeInteger(quantity) || quantity < 0) throw new Error('quantity must be a non-negative safe integer');
+  if (!Number.isSafeInteger(quantity) || quantity < 0)
+    throw new Error('quantity must be a non-negative safe integer');
   return parseMoney({ currency: amount.currency, minor: amount.minor * quantity });
 };
 
-export const productSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  price: moneySchema.refine((value) => value.minor >= 0, 'price cannot be negative'),
-  active: z.boolean(),
-  barcode: z.string().min(1).optional(),
-}).strict();
+export const productSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    price: moneySchema.refine((value) => value.minor >= 0, 'price cannot be negative'),
+    active: z.boolean(),
+    barcode: z.string().min(1).optional(),
+  })
+  .strict();
 export type Product = z.infer<typeof productSchema>;
 
-export const inventoryRecordSchema = z.object({
-  productId: z.string().min(1),
-  onHand: z.number().int().nonnegative(),
-  target: z.number().int().positive(),
-  critical: z.number().int().nonnegative(),
-}).strict().refine((value) => value.critical <= value.target, 'critical must not exceed target');
+export const inventoryRecordSchema = z
+  .object({
+    productId: z.string().min(1),
+    onHand: z.number().int().nonnegative(),
+    target: z.number().int().positive(),
+    critical: z.number().int().nonnegative(),
+  })
+  .strict()
+  .refine((value) => value.critical <= value.target, 'critical must not exceed target');
 export type InventoryRecord = z.infer<typeof inventoryRecordSchema>;
 export type InventoryRiskLevel = 'critical' | 'low' | 'healthy';
 export interface InventoryRisk {
@@ -49,9 +63,12 @@ export interface InventoryRisk {
 }
 export const assessInventoryRisk = (value: InventoryRecord): InventoryRisk => {
   const inventory = inventoryRecordSchema.parse(value);
-  const level: InventoryRiskLevel = inventory.onHand <= inventory.critical
-    ? 'critical'
-    : inventory.onHand < inventory.target ? 'low' : 'healthy';
+  const level: InventoryRiskLevel =
+    inventory.onHand <= inventory.critical
+      ? 'critical'
+      : inventory.onHand < inventory.target
+        ? 'low'
+        : 'healthy';
   return {
     level,
     fillPercent: Math.round((inventory.onHand / inventory.target) * 100),
@@ -61,20 +78,24 @@ export const assessInventoryRisk = (value: InventoryRecord): InventoryRisk => {
 
 export const deviceKindSchema = z.enum(['payment-reader', 'scanner', 'network', 'door-sensor', 'scale']);
 export const deviceStatusSchema = z.enum(['online', 'degraded', 'offline']);
-export const deviceHealthSchema = z.object({
-  id: z.string().min(1),
-  kind: deviceKindSchema,
-  requiredForCheckout: z.boolean(),
-  status: deviceStatusSchema,
-  lastSeenAt: z.string().datetime(),
-}).strict();
+export const deviceHealthSchema = z
+  .object({
+    id: z.string().min(1),
+    kind: deviceKindSchema,
+    requiredForCheckout: z.boolean(),
+    status: deviceStatusSchema,
+    lastSeenAt: z.string().datetime(),
+  })
+  .strict();
 export type DeviceHealth = z.infer<typeof deviceHealthSchema>;
 
-export const storeHealthInputSchema = z.object({
-  now: z.string().datetime(),
-  staleAfterMinutes: z.number().positive(),
-  devices: z.array(deviceHealthSchema),
-}).strict();
+export const storeHealthInputSchema = z
+  .object({
+    now: z.string().datetime(),
+    staleAfterMinutes: z.number().positive(),
+    devices: z.array(deviceHealthSchema),
+  })
+  .strict();
 export type StoreHealthInput = z.infer<typeof storeHealthInputSchema>;
 export type StoreHealthStatus = 'healthy' | 'degraded' | 'unsafe' | 'stale';
 export interface StoreHealthSummary {
@@ -87,38 +108,65 @@ export const summarizeStoreHealth = (value: StoreHealthInput): StoreHealthSummar
   const input = storeHealthInputSchema.parse(value);
   const now = Date.parse(input.now);
   const staleAt = now - input.staleAfterMinutes * 60_000;
-  const stale = input.devices.length === 0 || input.devices.some((device) => Date.parse(device.lastSeenAt) < staleAt);
-  const offlineRequiredDeviceIds = input.devices.filter((device) => device.requiredForCheckout && device.status === 'offline').map((device) => device.id);
-  const degradedDeviceIds = input.devices.filter((device) => device.status === 'degraded').map((device) => device.id);
-  const status: StoreHealthStatus = offlineRequiredDeviceIds.length > 0 ? 'unsafe'
-    : stale ? 'stale' : degradedDeviceIds.length > 0 ? 'degraded' : 'healthy';
+  const stale =
+    input.devices.length === 0 || input.devices.some((device) => Date.parse(device.lastSeenAt) < staleAt);
+  const offlineRequiredDeviceIds = input.devices
+    .filter((device) => device.requiredForCheckout && device.status === 'offline')
+    .map((device) => device.id);
+  const degradedDeviceIds = input.devices
+    .filter((device) => device.status === 'degraded')
+    .map((device) => device.id);
+  const status: StoreHealthStatus =
+    offlineRequiredDeviceIds.length > 0
+      ? 'unsafe'
+      : stale
+        ? 'stale'
+        : degradedDeviceIds.length > 0
+          ? 'degraded'
+          : 'healthy';
   return { status, stale, offlineRequiredDeviceIds, degradedDeviceIds };
 };
 
 export type CheckoutBlockReason = 'cart-empty' | 'store-data-stale' | 'required-device-offline';
 export type CheckoutGuard = { allowed: true } | { allowed: false; reason: CheckoutBlockReason };
-export const canCheckout = ({ store, cartLines }: { store: StoreHealthSummary; cartLines: number }): CheckoutGuard => {
-  if (!Number.isSafeInteger(cartLines) || cartLines < 0) throw new Error('cartLines must be a non-negative safe integer');
+export const canCheckout = ({
+  store,
+  cartLines,
+}: {
+  store: StoreHealthSummary;
+  cartLines: number;
+}): CheckoutGuard => {
+  if (!Number.isSafeInteger(cartLines) || cartLines < 0)
+    throw new Error('cartLines must be a non-negative safe integer');
   if (cartLines === 0) return { allowed: false, reason: 'cart-empty' };
   if (store.offlineRequiredDeviceIds.length > 0) return { allowed: false, reason: 'required-device-offline' };
   if (store.stale) return { allowed: false, reason: 'store-data-stale' };
   return { allowed: true };
 };
 
-export const cartLineSchema = z.object({
-  productId: z.string().min(1),
-  unitPrice: moneySchema.refine((value) => value.minor >= 0),
-  quantity: z.number().int().positive(),
-  discountMinor: z.number().int().nonnegative(),
-}).strict();
+export const cartLineSchema = z
+  .object({
+    productId: z.string().min(1),
+    unitPrice: moneySchema.refine((value) => value.minor >= 0),
+    quantity: z.number().int().positive(),
+    discountMinor: z.number().int().nonnegative(),
+  })
+  .strict();
 export type CartLine = z.infer<typeof cartLineSchema>;
-export const cartInputSchema = z.object({
-  currency: currencySchema,
-  taxBasisPoints: z.number().int().nonnegative(),
-  lines: z.array(cartLineSchema),
-}).strict();
+export const cartInputSchema = z
+  .object({
+    currency: currencySchema,
+    taxBasisPoints: z.number().int().nonnegative(),
+    lines: z.array(cartLineSchema),
+  })
+  .strict();
 export type CartInput = z.infer<typeof cartInputSchema>;
-export interface CartTotals { subtotal: Money; discount: Money; tax: Money; total: Money; }
+export interface CartTotals {
+  subtotal: Money;
+  discount: Money;
+  tax: Money;
+  total: Money;
+}
 export const calculateCartTotals = (value: CartInput): CartTotals => {
   const input = cartInputSchema.parse(value);
   let subtotalMinor = 0;
@@ -166,12 +214,14 @@ export const nextPaymentState = (state: PaymentState, event: PaymentEvent): Paym
   return next;
 };
 
-export const offlineSaleSchema = z.object({
-  id: z.string().min(1),
-  completedAt: z.string().datetime(),
-  total: moneySchema.refine((value) => value.minor >= 0),
-  paymentState: z.literal('approved'),
-}).strict();
+export const offlineSaleSchema = z
+  .object({
+    id: z.string().min(1),
+    completedAt: z.string().datetime(),
+    total: moneySchema.refine((value) => value.minor >= 0),
+    paymentState: z.literal('approved'),
+  })
+  .strict();
 export type OfflineSale = z.infer<typeof offlineSaleSchema>;
 export type OfflineSaleQueue = readonly OfflineSale[];
 export const enqueueOfflineSale = (queue: OfflineSaleQueue, sale: OfflineSale): OfflineSaleQueue => {
@@ -181,15 +231,35 @@ export const enqueueOfflineSale = (queue: OfflineSaleQueue, sale: OfflineSale): 
 };
 
 /** Stable pseudo-random fixtures for demo and test use; no system time or random global state. */
-const hashSeed = (seed: string): number => [...seed].reduce((state, char) => Math.imul(state ^ char.charCodeAt(0), 16_777_619) >>> 0, 2_166_136_261);
+const hashSeed = (seed: string): number =>
+  [...seed].reduce((state, char) => Math.imul(state ^ char.charCodeAt(0), 16_777_619) >>> 0, 2_166_136_261);
 const rng = (seed: string): (() => number) => {
   let state = hashSeed(seed);
-  return () => { state = (state + 0x6D2B79F5) >>> 0; let value = state; value = Math.imul(value ^ (value >>> 15), value | 1); value ^= value + Math.imul(value ^ (value >>> 7), value | 61); return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296; };
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
+  };
 };
-export interface DomainFixtures { products: Product[]; inventory: InventoryRecord[]; }
+export interface DomainFixtures {
+  products: Product[];
+  inventory: InventoryRecord[];
+}
 export const createSeededFixtures = (seed: string): DomainFixtures => {
   const random = rng(seed);
-  const products: Product[] = ['Sparkling Water', 'Trail Mix', 'Cold Brew'].map((name, index) => ({ id: `sku-${index + 1}`, name, price: { currency: 'USD', minor: 150 + index * 125 }, active: true }));
-  const inventory = products.map((product) => ({ productId: product.id, onHand: Math.floor(random() * 16), target: 12, critical: 3 }));
+  const products: Product[] = ['Sparkling Water', 'Trail Mix', 'Cold Brew'].map((name, index) => ({
+    id: `sku-${index + 1}`,
+    name,
+    price: { currency: 'USD', minor: 150 + index * 125 },
+    active: true,
+  }));
+  const inventory = products.map((product) => ({
+    productId: product.id,
+    onHand: Math.floor(random() * 16),
+    target: 12,
+    critical: 3,
+  }));
   return { products, inventory };
 };

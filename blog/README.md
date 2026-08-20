@@ -11,7 +11,7 @@ A four-part engineering series for the Retail Reliability Lab: an independent po
 
 ## Source-link status
 
-This writing lane owns only `blog/`. The application and domain-package lanes were not present in this checkout when these posts were written. Every repository reference points to the intended relative source location described by the product brief and is explicitly marked **expected from a parallel lane** until that target exists. The links are useful review anchors, not claims that source, tests, screenshots, or production results already exist.
+Each article links to the implemented demo or shared-domain source when it discusses repository-specific behavior. Broader production patterns are labeled as recommendations rather than claims about this generated-data lab.
 
 No screenshots or demo GIFs are included or implied by this series.
 

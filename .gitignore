@@ -9,3 +9,4 @@ cypress/videos/
 !.env.example
 .DS_Store
 *.log
+*.tsbuildinfo

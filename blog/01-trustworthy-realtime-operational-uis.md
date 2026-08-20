@@ -32,7 +32,7 @@ A compact model distinguishes domain health from transport freshness and user in
 
 The arrows matter more than the colors. `stale` is not a softer spelling of `unavailable`: it means the last known value remains useful, but is no longer safe to treat as current. A user should be able to inspect it, while automation and high-impact actions use a stricter guard.
 
-The shared package is the right home for deterministic classification. **Expected from a parallel lane:** [`packages/domain/src/storeHealth.ts`](../packages/domain/src/storeHealth.ts) and its focused tests at [`packages/domain/src/storeHealth.test.ts`](../packages/domain/src/storeHealth.test.ts).
+The shared package is the right home for deterministic classification. This demo keeps the health rules in [`packages/domain/src/index.ts`](../packages/domain/src/index.ts) with focused assertions in [`packages/domain/test/domain.test.ts`](../packages/domain/test/domain.test.ts).
 
 ```ts
 export type Freshness = "current" | "stale" | "offline";
@@ -135,7 +135,7 @@ export function reduceFeed(state: FeedState, action: FeedAction): FeedState {
 }
 ```
 
-The intended console seam is **expected from a parallel lane:** [`apps/operator-console/src/features/transactions/TransactionFeed.tsx`](../apps/operator-console/src/features/transactions/TransactionFeed.tsx). Its event reducer can live beside it or in a testable module; the crucial point is that a paused human review is a state, not a CSS freeze.
+The console demonstrates the pause/resume seam in [`apps/operator-console/src/App.tsx`](../apps/operator-console/src/App.tsx). A larger product should extract that feed and its reducer into a feature module; the crucial point is that a paused human review is a state, not a CSS freeze.
 
 ## Make optimistic actions honest
 

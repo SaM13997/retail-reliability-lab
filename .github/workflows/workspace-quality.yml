@@ -68,7 +68,7 @@ jobs:
       - run: npm ci
       - run: npm --workspace apps/store-pos run typecheck
       - run: npm --workspace apps/store-pos run test
-      - run: npm --workspace apps/store-pos run web
+      - run: npm --workspace apps/store-pos run export:web
       - name: Upload POS web export
         uses: actions/upload-artifact@v4
         with:

@@ -4,10 +4,10 @@ This is the release evidence contract. A check is not complete because a control
 
 | Area | Minimum coverage | Gate / evidence | Pass rule |
 | --- | --- | --- | --- |
-| Domain rules | Inventory thresholds, unsafe health, currency rounding, empty/invalid carts, checkout guard reasons, event ordering, fixture determinism | Focused unit tests in `packages/domain`; CI test output | Every named edge has a deterministic assertion; no UI dependency is imported. |
-| Operator Console | Loading, empty, error/retry, stale, offline, table/filter behavior, incident optimistic success and rollback, live-feed pause/resume/detail | Vitest + Testing Library; Cypress smoke | Assertions use user-visible behavior and stable roles/labels, not implementation state. |
-| Store POS | Scan/search, cart totals, unsafe checkout block, processing/approved/declined/timeout/retry, offline completion and recovery | Unit/component tests plus Expo web manual or automated smoke | A blocked checkout names the reason; queued sale persists through reload and leaves only after acknowledgement. |
-| Accessibility | Keyboard order, visible focus, dialogs, semantic tables, errors/status changes, touch targets, reduced motion | Automated `axe` scan plus keyboard screen-reader-informed checklist | No critical/serious automated violation; keyboard workflow completes without pointer; status changes have appropriate announcement. |
+| Domain rules | Inventory thresholds, unsafe health, currency rounding, empty/invalid carts, checkout guard reasons, payment transitions, fixture determinism | Focused unit tests in `packages/domain`; CI test output | Every named edge has a deterministic assertion; no UI dependency is imported. |
+| Operator Console | Loading, generated-data disclaimer, incident optimistic rollback, and live-feed pause/resume are automated; table/filter, dialog, offline, stale, and success paths require manual review | Vitest + Testing Library; Cypress smoke; `docs/review-guide.md` | Assertions use user-visible behavior and stable roles/labels, not implementation state. |
+| Store POS | Shared cart/guard/payment/queue adapters are unit tested; scan/search, payment outcomes, persisted offline completion, and recovery require manual review | Jest plus Expo web review | A blocked checkout names the reason; an offline-approved sale is persisted and clears after simulated acknowledgement. |
+| Accessibility | Keyboard order, visible focus, dialogs, semantic tables, status changes, touch targets, and reduced motion | Manual keyboard/screen-reader-informed checklist; automated axe is a documented next gate, not a current claim | Keyboard workflow completes without pointer; status changes have an understandable label or announcement. |
 | Performance | Initial console render, inventory interaction, event burst handling, POS list/cart responsiveness | DevTools/React Profiler trace with reproducible fixture seed | Record device/browser, throttle, seed, steps, metric, and before/after trace. Never claim production latency or universal thresholds. |
 | Memory | Route/unmount cleanup, event subscription cleanup, timers, paused feed, repeated navigation | Browser heap comparison and subscription-count test where practical | Three repeatable cycles show no monotonically retained app-owned listeners/timers; attach snapshots or explain tool limits. |
 | Offline/resilience | Offline banner, disabled unsafe paths, cached/queued state, reconnect retry, duplicate acknowledgement | Cypress network interception and/or deterministic simulator evidence | Network failure is intentional and visible; queue retains failed work; duplicate sync does not duplicate a sale. |
@@ -45,6 +45,6 @@ The workflow expects root `package-lock.json` and these scripts when the workspa
 
 - `npm --workspace packages/domain run typecheck` and `test`
 - `npm --workspace apps/operator-console run typecheck`, `lint`, `test`, `build`, and `cypress:run`
-- `npm --workspace apps/store-pos run typecheck`, `test`, and `web`
+- `npm --workspace apps/store-pos run typecheck`, `test`, and `export:web`
 
 `cypress:run` must start the built or previewed console, wait for its health URL, run deterministic Chromium smoke specs, and stop the server. It must not depend on a live external service.

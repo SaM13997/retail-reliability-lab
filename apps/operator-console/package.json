@@ -1,23 +1,30 @@
 {
-  "name": "operator-console",
+  "name": "@retail-reliability/operator-console",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
+    "lint": "biome check src cypress cypress.config.ts vite.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "cypress": "cypress run",
-    "cypress:open": "cypress open"
+    "cypress:open": "cypress open",
+    "cypress:run": "concurrently --kill-others --success first \"npm:preview\" \"npm:cypress:wait\"",
+    "cypress:wait": "wait-on http://127.0.0.1:4173 && npm run cypress"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^7.3.1",
     "@mui/material": "^7.3.1",
+    "@retail-reliability/domain": "0.1.0",
     "@tanstack/react-query": "^5.66.9",
     "@tanstack/react-table": "^8.21.3",
     "react": "^19.0.0",
@@ -31,10 +38,12 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.4.1",
-    "cypress": "^14.1.0",
+    "concurrently": "^9.2.1",
+    "cypress": "^15.21.0",
     "jsdom": "^26.0.0",
     "typescript": "^5.7.3",
     "vite": "^6.1.0",
-    "vitest": "^3.0.5"
+    "vitest": "^3.0.5",
+    "wait-on": "^8.0.4"
   }
 }
