@@ -1,0 +1,16 @@
+{
+  "name": "retail-reliability-lab",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "npm@10",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspace=@retail-reliability/domain",
+    "test": "npm run test --workspace=@retail-reliability/domain"
+  }
+}
