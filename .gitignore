@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.expo/
+coverage/
+cypress/screenshots/
+cypress/videos/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
