@@ -1,0 +1,104 @@
+name: Workspace quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - lane/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workspace-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  domain:
+    name: Domain rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm --workspace packages/domain run typecheck
+      - run: npm --workspace packages/domain run test
+
+  operator-console:
+    name: Operator Console
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: domain
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm --workspace apps/operator-console run typecheck
+      - run: npm --workspace apps/operator-console run lint
+      - run: npm --workspace apps/operator-console run test
+      - run: npm --workspace apps/operator-console run build
+      - name: Upload console build
+        uses: actions/upload-artifact@v4
+        with:
+          name: operator-console-dist
+          path: apps/operator-console/dist
+          if-no-files-found: error
+          retention-days: 7
+
+  store-pos:
+    name: Store POS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: domain
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm --workspace apps/store-pos run typecheck
+      - run: npm --workspace apps/store-pos run test
+      - run: npm --workspace apps/store-pos run web
+      - name: Upload POS web export
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-pos-web
+          path: apps/store-pos/dist
+          if-no-files-found: error
+          retention-days: 7
+
+  cypress-smoke:
+    name: Cypress smoke (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: operator-console
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Contract: this script starts a local deterministic preview, waits for it,
+      # runs Chromium smoke specs, and reliably stops the server.
+      - run: npm --workspace apps/operator-console run cypress:run
+      - name: Upload Cypress diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-diagnostics
+          path: |
+            apps/operator-console/cypress/screenshots
+            apps/operator-console/cypress/videos
+          if-no-files-found: ignore
+          retention-days: 7
